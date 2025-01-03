@@ -3,8 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 import yfinance as yf
 from typing import Dict
 from pydantic import BaseModel
-from app.models.prediction import Prediction
-import pandas as pd
+from app.models.prediction_test import prediction
+
 
 app = FastAPI(title="Stock Prediction API")
 
@@ -59,21 +59,24 @@ async def predict_stock(symbol: str, lookback_years: int = 1, forecast_days: int
         if lookback_years > 10:
             raise HTTPException(status_code=400, detail="Lookback years cannot exceed 10.")
         
-        # Fetch historical data for the ticker
-        stock_data = yf.Ticker(symbol).history(period=f"{lookback_years}y")
-        if stock_data.empty:
-            raise HTTPException(status_code=404, detail=f"No data found for symbol {symbol}")
+        # # Fetch historical data for the ticker
+        # stock_data = yf.Ticker(symbol).history(period=f"{lookback_years}y")
+        # if stock_data.empty:
+        #     raise HTTPException(status_code=404, detail=f"No data found for symbol {symbol}")
         
-        # Only use the 'Close' price for prediction
-        stock_data = stock_data['Close']
+        # # Only use the 'Close' price for prediction
+        # stock_data = stock_data['Close']
 
         # Use the Prediction class to predict stock prices
-        predicted_prices = Prediction.predict_stock_price(symbol, stock_data, forecast_days)
+        data, forecast_range, scaled_data, scaler = prediction.preprocess(past_data = lookback_years, forecast_range = forecast_days) # Tickers array will be assigned
+        predicted_prices = prediction.predict_stock_price(scaled_data, scaler, forecast_range)
+        graph_html = prediction.plot_forecast_html(predicted_prices, data, forecast_range, selected_tickers=symbol) # Graph function here
 
         return {
             "ticker": symbol,
             "predicted_prices": predicted_prices,
-            "forecast_days": forecast_days
+            "forecast_days": forecast_days,
+            "graph": graph_html
         }
 
     except Exception as e:
